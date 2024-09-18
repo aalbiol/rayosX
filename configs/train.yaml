@@ -1,0 +1,53 @@
+training_params:
+  num_epochs: 150
+  batch_size: 5
+  in_memory: True
+  random_seed: 42
+  optimizer: adam
+  learning_rate: 0.0001
+  warmup: 6
+  unfreeze_epoch: 50
+  gamma_param: 0.1
+  weights_decay: 0.01
+  pos_weights: 10000
+  save_path: ./out_models/
+  out_model_name: segmentadorRayosX.ckpt
+
+
+log_name: 100_epochs_LR_0.0001_WD_0.01
+wandb_project: RayosX
+
+model_params:
+  image_size: 600
+  model_version: deeplabv3_resnet50 
+  p_dropout: 0.5
+  num_channels_in: 3
+
+
+defect_simulation_params:
+  prob_no_change: 0.0
+  min_number_of_defects: 15
+  max_number_of_defects: 25
+  min_defect_intensity: 0.07
+  max_defect_intensity: 0.2
+  min_defect_size: 15
+  max_defect_size: 42
+  min_defect_width: 2
+  max_defect_width: 15
+
+  
+
+
+# Training Data
+dataset_params:
+  images_root_folder: mscanData/rayosX/pollo
+  normalization_json: modelos/normalization_rayosX.json
+  train_dataplaces:
+  - !!python/tuple
+    - listas_rayosX/buenos/train/train_list.txt
+    - recortes_good
+
+  val_dataplaces:
+  - !!python/tuple
+    - listas_rayosX/buenos/val/val_list.txt
+    - recortes_good

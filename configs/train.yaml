@@ -1,12 +1,12 @@
 training_params:
-  num_epochs: 150
-  batch_size: 5
+  num_epochs: 250
+  batch_size: 8
   in_memory: True
-  random_seed: 42
+  random_seed: 21   
   optimizer: adam
   learning_rate: 0.0001
   warmup: 6
-  unfreeze_epoch: 50
+  unfreeze_epoch: 40
   gamma_param: 0.1
   weights_decay: 0.01
   pos_weights: 10000
@@ -14,8 +14,8 @@ training_params:
   out_model_name: segmentadorRayosX.ckpt
 
 
-log_name: 100_epochs_LR_0.0001_WD_0.01
-wandb_project: RayosX
+log_name: uso_logatitmo
+wandb_project: WANDB_RayosX
 
 model_params:
   image_size: 600
@@ -26,15 +26,20 @@ model_params:
 
 defect_simulation_params:
   prob_no_change: 0.0
-  min_number_of_defects: 15
-  max_number_of_defects: 25
-  min_defect_intensity: 0.07
-  max_defect_intensity: 0.2
-  min_defect_size: 15
-  max_defect_size: 42
+  min_number_of_defects: 1
+  max_number_of_defects: 3
+  alpha_low: 0.02
+  alpha_high: 0.04gi
+  min_defect_size: 40
+  max_defect_size: 150
   min_defect_width: 2
-  max_defect_width: 15
-
+  max_defect_width: 8
+  defect_types:
+    FlatLine: 1.0
+    CylLine: 1.0
+    FlatSpline: 1.0
+    CylSpline: 2.0
+    
   
 
 
@@ -42,6 +47,7 @@ defect_simulation_params:
 dataset_params:
   images_root_folder: mscanData/rayosX/pollo
   normalization_json: modelos/normalization_rayosX.json
+  scale: 1.0
   train_dataplaces:
   - !!python/tuple
     - listas_rayosX/buenos/train/train_list.txt

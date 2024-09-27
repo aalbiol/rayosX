@@ -6,11 +6,14 @@ import json
 import simulador_defectos
 from torchvision import transforms
 import pathlib
-
+import math
 
 
 def read_image_rayosX(filename,max_value,scale=0.7):
-    #print("Reading image", filename		)
+	'''
+	El primer canal es low, el segundo es high y el tercero la media
+	'''
+	#print("Reading image", filename		)
 	im=cv2.imread(filename,cv2.IMREAD_UNCHANGED)
 	if im is not None:
 		if im.ndim ==3 :
@@ -30,13 +33,14 @@ def read_image_rayosX(filename,max_value,scale=0.7):
 			im=im.unsqueeze(0)
 		else:
 			im=im.permute((2,0,1))
+
 	
 	return im
 
 
 
     
-def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones=None, max_values=None,delimiter='_'):
+def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones=None, max_values=None,delimiter='.'):
 	'''
 	Recibe una lista de dataplaces
 	Cada dataplace es una tupla de dos elementos
@@ -59,6 +63,7 @@ def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones
 		for im in images:
 			im = im.strip()
 			view_id=im.split(delimiter)[:-1]
+
 			
 			filenames=[]
 			pixels=None # De momento no he leido nada
@@ -78,13 +83,14 @@ def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones
 						pixels=torch.cat((pixels,pixels_channel),0)
 				else:
 					pixels = None
+			#print(">>>>>>>>>>>>>>>>>>> view_id: ",view_id, "im: ",im, filenames)
 			dataset.append({'filenames': filenames, 'pixels': pixels})
 	return dataset
 
 
 
 		
-def compute_normalization(dataset,terminaciones,max_values,normalization_image_size=(224,224)):
+def compute_normalization(dataset,terminaciones,max_values):
 	'''
 	Dado un dataset, lista de diccionarios, devuelve un diccionario con la media y la desviación estándar de cada canal
 	'''
@@ -92,7 +98,7 @@ def compute_normalization(dataset,terminaciones,max_values,normalization_image_s
 	stds=[]
 	suma=0
 	suma2=0
-	transform=transforms.Resize(normalization_image_size)
+
 	for el in dataset:
 		pixels = el['pixels']
 		if pixels is  None:
@@ -106,9 +112,7 @@ def compute_normalization(dataset,terminaciones,max_values,normalization_image_s
 		stdev=torch.std(pixels, dim=(1,2))
 		medias.append(media)
 		stds.append(stdev)
-		pixels2=transform(pixels)
-		suma = pixels2+suma
-		suma2 = pixels2**2+suma2
+
 	
 
 	out={'medias_norm': torch.mean(torch.stack(medias,axis=0),axis=0).tolist(), 'stds_norm': torch.mean(torch.stack(stds,axis=0),axis=0).tolist()}
@@ -117,14 +121,17 @@ def compute_normalization(dataset,terminaciones,max_values,normalization_image_s
 
 
 
-class DataplacesDataSet(Dataset):
+class DataplacesDataSetSimulaDefectos(Dataset):
     '''
     Clase para suministrar archivos dataplaces
+	Incluye la adición de defectos de acuerdo con los parámetros de simulación recibidos
     '''
     def __init__(self,root_folder=None, dataplaces=None ,transform=None,in_memory=False,terminaciones=None,normalization_params=None,
                  normalization_image_params=None,normalization_image_size=(224,224),
-                 max_values=None,delimiter='_',
-                 params_simulacion_defectos=None):
+                 max_values=None,delimiter='.',
+                 params_simulacion_defectos=None,
+                 scale=1.0,
+                 logaritmo=True):
         super().__init__()
         
         self.root_folder=root_folder
@@ -133,6 +140,10 @@ class DataplacesDataSet(Dataset):
         self.terminaciones=terminaciones
         self.max_values=max_values
         self.delimiter=delimiter
+        self.scale=scale
+        
+        self.logaritmo=logaritmo
+        print(">>>>>>>>>>>> DataplacesDataset terminaciones", terminaciones, "delimiter", delimiter)	
         self.dataset = get_dataset(dataplaces, images_root_folder=root_folder,in_memory=in_memory, 
                                    terminaciones=terminaciones,max_values=max_values,delimiter=self.delimiter)
         self.normalization_image_size=normalization_image_size
@@ -141,12 +152,12 @@ class DataplacesDataSet(Dataset):
         self.params_simulacion_defectos=params_simulacion_defectos
         self.simulador=simulador_defectos.SimulaDefectoRayos(self.params_simulacion_defectos)
         
-        print(">>>>>>>>>> Image size in DataSet", self.normalization_image_size)
+        print(">>>>>>>>>> scale in DataSet", self.scale)
         
         # if normalization_params is None or normalization_image_params is None:
         #     self.normalization_params,self.normalization_image_params=dataset.compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)
         if normalization_params is None:
-            self.normalization_params=compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)    
+            self.normalization_params=compute_normalization(self.dataset,self.terminaciones,self.max_values)    
             
             pathlib.Path('modelos').mkdir(parents=True, exist_ok=True)
             with open('modelos/normalization.json','w') as json_file:
@@ -165,20 +176,28 @@ class DataplacesDataSet(Dataset):
         caso=self.dataset[index]
         max_values=self.max_values
         
+        
+        
         pixels=caso['pixels']
 
         if pixels is None:
             pixels=[]
             for t in range(len(self.terminaciones)):
-                pixels_channel=read_image_rayosX(caso['filenames'][t],max_values[t])
+                #print("getting item", caso['filenames'][t],index,self.__len__())
+                assert os.path.exists(caso['filenames'][t]), caso['filenames'][t]
+                pixels_channel=read_image_rayosX(caso['filenames'][t],max_values[t],scale=self.scale)
                 pixels.append(pixels_channel)
             pixels=torch.cat((pixels),0)
             
         pixels, defect_mask = self.simulador.processTensor(pixels)
         
-        
+
+   
         if self.transform is not None:  
             pixels , defect_mask = self.transform(pixels,defect_mask) # Transforma pixeles y mascaras inteligentemente
+            
+        if self.logaritmo:
+            pixels=torch.log(pixels+1/max_values[0])/math.log(0.2)            
       
         return pixels, caso['filenames'],defect_mask
               

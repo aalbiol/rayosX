@@ -26,7 +26,7 @@ import m_dataLoad_json
 
 from transformaciones import Aumentador_Imagenes_y_Mascaras
 
-from dataset import DataplacesDataSet
+from dataset import DataplacesDataSetSimulaDefectos
 
 def pad_image(image_tensor, max_height, max_width,pad_value=1):
     _, h, w = image_tensor.shape
@@ -86,62 +86,6 @@ def my_collate_fn(data): # Crear batch a partir de lista de casos
 
 
 
-# class DataplacesDataSet(Dataset):
-#     '''
-#     Clase para suministrar archivos dataplaces
-#     '''
-#     def __init__(self,root_folder=None, dataplaces=None ,transform=None,in_memory=False,terminaciones=None,normalization_params=None,normalization_image_params=None,normalization_image_size=(224,224),max_values=None,delimiter='_'):
-#         super().__init__()
-        
-#         self.root_folder=root_folder
-#         self.dataplaces=dataplaces
-#         self.transform = transform
-#         self.terminaciones=terminaciones
-#         self.max_values=max_values
-#         self.delimiter=delimiter
-#         self.dataset=dataset.get_dataset(dataplaces, images_root_folder=root_folder,in_memory=in_memory, terminaciones=terminaciones,max_values=max_values,delimiter=self.delimiter)
-#         self.normalization_image_size=normalization_image_size
-#         print(">>>>>>>>>> Image size in DataSet", self.normalization_image_size)
-        
-#         # if normalization_params is None or normalization_image_params is None:
-#         #     self.normalization_params,self.normalization_image_params=dataset.compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)
-#         if normalization_params is None:
-#             self.normalization_params,self.normalization_image_params=dataset.compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)    
-#             print('Datos de normalizacion calculados')
-#             with open('modelos/normalization.json','w') as json_file:
-#                 json.dump(self.normalization_params,json_file, indent=4)
-
-#         else:
-#             self.normalization_image_params=normalization_image_params
-#             self.normalization_params=normalization_params
-#             print('Datos de normalizacion cargados')
-            
-#     def setTransform(self, transform):
-#         self.transform = transform
-
-              
-#     def __getitem__(self, index: int) -> Tuple[Any, Any]:              
-#         caso=self.dataset[index]
-#         max_values=self.max_values
-#         pixels=caso['pixels']
-#         if pixels is None:
-#             pixels=[]
-#             for t in range(len(self.terminaciones)):
-#                 pixels_channel=dataset.read_image(caso['filenames'][t],max_values[t])
-#                 pixels.append(pixels_channel)
-#             pixels=torch.cat((pixels),0)
-#         if self.transform is not None:  
-#             pixels = self.transform(pixels)
-      
-#         return pixels, caso['filenames']
-              
-#     def __len__(self) -> int:
-#         return len(self.dataset)
- 
- 
- 
- 
-
 
 class ListFileDataModule(pl.LightningDataModule):
     def __init__(self, images_root_path = None, 
@@ -150,14 +94,15 @@ class ListFileDataModule(pl.LightningDataModule):
                  pred_dataplaces=None,                 
                  batch_size: int =25, 
                  num_workers=-1,
-                 imagesize=(224,224),
+                 #imagesize=(224,224),
                  normalization_params=None,
                  normalization_image_params=None,
                  in_memory=True,
-                 terminaciones=None,
+                 terminaciones=[".png"],
                  max_values=None,
-                 delimiter='_',
-                 params_simulacion_defectos=None
+                 delimiter='.',
+                 params_simulacion_defectos=None,
+                 scale=1.0
                  ):
         '''
 
@@ -174,11 +119,12 @@ class ListFileDataModule(pl.LightningDataModule):
         self.images_root_path=images_root_path
         self.normalization_params = normalization_params
         self.normalization_image_params = normalization_image_params
-        self.target_image_size =imagesize
+        #self.target_image_size =imagesize
         self.train_dataplaces=train_dataplaces  
         self.val_dataplaces=val_dataplaces
         self.pred_dataplaces=pred_dataplaces
         self.params_simulacion_defectos=params_simulacion_defectos
+        self.scale=scale
         
         assert self.params_simulacion_defectos is not None
         print('self.normalization params at input of ListFileDataModule', self.normalization_params)
@@ -188,12 +134,16 @@ class ListFileDataModule(pl.LightningDataModule):
         self.val_dataset = None
         self.pred_dataset = None
         if train_dataplaces is not None:
-            self.train_dataset = DataplacesDataSet(root_folder=self.images_root_path, dataplaces=self.train_dataplaces, transform = None, 
-                                                   in_memory=in_memory, terminaciones=self.terminaciones,max_values=self.max_values,
+            
+            self.train_dataset = DataplacesDataSetSimulaDefectos(root_folder=self.images_root_path, dataplaces=self.train_dataplaces, transform = None, 
+                                                   in_memory=in_memory, 
+                                                   terminaciones=self.terminaciones,
+                                                   max_values=self.max_values,
                                                    normalization_params=self.normalization_params,
                                                    normalization_image_params=self.normalization_image_params,
-                                                   normalization_image_size=self.target_image_size, delimiter=self.delimiter,
-                                                   params_simulacion_defectos=params_simulacion_defectos)
+                                                   #normalization_image_size=self.target_image_size, 
+                                                   delimiter=self.delimiter,
+                                                   params_simulacion_defectos=params_simulacion_defectos,scale=self.scale)
         # Si por configuracion es none, lo calcula con el trainset
         if self.normalization_params is None :
             self.normalization_params=self.train_dataset.normalization_params
@@ -204,25 +154,25 @@ class ListFileDataModule(pl.LightningDataModule):
         self.stds_norm=self.normalization_params['stds_norm']
         
         if val_dataplaces is not None:
-            self.val_dataset = DataplacesDataSet(root_folder=self.images_root_path, dataplaces=self.val_dataplaces, transform = None, 
+            self.val_dataset = DataplacesDataSetSimulaDefectos(root_folder=self.images_root_path, dataplaces=self.val_dataplaces, transform = None, 
                                                  in_memory=in_memory, terminaciones=self.terminaciones,max_values=self.max_values,
                                                  normalization_params=self.normalization_params, 
-                                                 normalization_image_size=self.target_image_size,delimiter=self.delimiter,
-                                                 params_simulacion_defectos=params_simulacion_defectos)
+                                                 #normalization_image_size=self.target_image_size
+                                                 delimiter=self.delimiter,
+                                                 params_simulacion_defectos=params_simulacion_defectos,scale=self.scale)
         if pred_dataplaces is not None:
             params_simulacion_defectos_pred=params_simulacion_defectos.copy()
             params_simulacion_defectos_pred['prob_no_change']=1.0
-            self.pred_dataset = DataplacesDataSet(root_folder=self.images_root_path, dataplaces=self.pred_dataplaces, transform = None, in_memory=in_memory, terminaciones=self.terminaciones,max_values=self.max_values,
+            self.pred_dataset = DataplacesDataSetSimulaDefectos(root_folder=self.images_root_path, dataplaces=self.pred_dataplaces, transform = None, in_memory=in_memory, terminaciones=self.terminaciones,max_values=self.max_values,
                                                  normalization_params=self.normalization_params, 
-                                                 normalization_image_size=self.target_image_size,delimiter=self.delimiter,
-                                                 params_simulacion_defectos=params_simulacion_defectos_pred)
+                                                 #normalization_image_size=self.target_image_size,
+                                                 delimiter=self.delimiter,
+                                                 params_simulacion_defectos=params_simulacion_defectos_pred,scale=self.scale)
 # Transformaciones para el entrenamiento
         transform_geometry_train= transforms.Compose([
             transforms.RandomHorizontalFlip(0.5),
             transforms.RandomVerticalFlip(0.5),
             transforms.RandomRotation(15,fill=1),
-            # transforms.RandomAffine(degrees=0, shear=15, scale=(0.8, 1.1)),
-            # transforms.RandomRotation(180),
             # transforms.Resize(self.target_image_size)
             ])
         
@@ -232,7 +182,7 @@ class ListFileDataModule(pl.LightningDataModule):
         transform_train=Aumentador_Imagenes_y_Mascaras(transform_geometry_train,
                                                        None,transform_normalize)
 
-        transform_val = Aumentador_Imagenes_y_Mascaras(transforms.Resize(self.target_image_size),
+        transform_val = Aumentador_Imagenes_y_Mascaras(None,
                                                        None,transform_normalize) 
 
         if self.train_dataset is not None:

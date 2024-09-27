@@ -28,7 +28,8 @@ class Aumentador_Imagenes_y_Mascaras():
 
 
         taco=torch.cat((taco,1-mask.unsqueeze(0)),0)
-        taco=self.geometric_transforms(taco)
+        if self.geometric_transforms is not None:
+            taco=self.geometric_transforms(taco)
         
         img2=taco[:ncanales,:,:]
         mask2=1-taco[ncanales,:,:]    

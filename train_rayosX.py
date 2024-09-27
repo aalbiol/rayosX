@@ -31,7 +31,8 @@ from collections import OrderedDict
 
 import numpy as np
 import pickle
-
+import wandb
+wandb.require("core")
 
 
 
@@ -84,7 +85,7 @@ def main(config):
     datamodule=ListFileDataModule(train_dataplaces=train_dataplaces, val_dataplaces=val_dataplaces, 
                                 images_root_path=images_root_folder, 
                                 in_memory=in_memory, 
-                                imagesize=imagesize,
+                                scale=config['dataset_params']['scale'],
                                 normalization_params=normalization_params,
                                 batch_size=batch_size,
                                 delimiter=".",
@@ -120,6 +121,7 @@ def main(config):
     # Instantiate lightning trainer and train model   
 
     if config['log_name'] is not None:
+
         miwandb= WandbLogger(name=config['log_name'], project=config['wandb_project'],config=config)
     lr_monitor = LearningRateMonitor(logging_interval='epoch')
     

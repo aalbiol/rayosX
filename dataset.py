@@ -39,7 +39,7 @@ def read_image_rayosX(filename,max_value,scale=0.7):
 
 
 
-    
+	
 def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones=None, max_values=None,delimiter='.'):
 	'''
 	Recibe una lista de dataplaces
@@ -52,7 +52,7 @@ def get_dataset(dataplaces, images_root_folder="",in_memory=False, terminaciones
 	con la imagen 3 x h x w
 	filename es el path completo
 	'''
-    
+	
 	dataset=[]
 	for dataplace in dataplaces:	
 		filename=dataplace[0]
@@ -122,85 +122,91 @@ def compute_normalization(dataset,terminaciones,max_values):
 
 
 class DataplacesDataSetSimulaDefectos(Dataset):
-    '''
-    Clase para suministrar archivos dataplaces
+	'''
+	Clase para suministrar archivos dataplaces
 	Incluye la adición de defectos de acuerdo con los parámetros de simulación recibidos
-    '''
-    def __init__(self,root_folder=None, dataplaces=None ,transform=None,in_memory=False,terminaciones=None,normalization_params=None,
-                 normalization_image_params=None,normalization_image_size=(224,224),
-                 max_values=None,delimiter='.',
-                 params_simulacion_defectos=None,
-                 scale=1.0,
-                 logaritmo=True):
-        super().__init__()
-        
-        self.root_folder=root_folder
-        self.dataplaces=dataplaces
-        self.transform = transform
-        self.terminaciones=terminaciones
-        self.max_values=max_values
-        self.delimiter=delimiter
-        self.scale=scale
-        
-        self.logaritmo=logaritmo
-        print(">>>>>>>>>>>> DataplacesDataset terminaciones", terminaciones, "delimiter", delimiter)	
-        self.dataset = get_dataset(dataplaces, images_root_folder=root_folder,in_memory=in_memory, 
-                                   terminaciones=terminaciones,max_values=max_values,delimiter=self.delimiter)
-        self.normalization_image_size=normalization_image_size
-        assert params_simulacion_defectos is not None
-        
-        self.params_simulacion_defectos=params_simulacion_defectos
-        self.simulador=simulador_defectos.SimulaDefectoRayos(self.params_simulacion_defectos)
-        
-        print(">>>>>>>>>> scale in DataSet", self.scale)
-        
-        # if normalization_params is None or normalization_image_params is None:
-        #     self.normalization_params,self.normalization_image_params=dataset.compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)
-        if normalization_params is None:
-            self.normalization_params=compute_normalization(self.dataset,self.terminaciones,self.max_values)    
-            
-            pathlib.Path('modelos').mkdir(parents=True, exist_ok=True)
-            with open('modelos/normalization.json','w') as json_file:
-                json.dump(self.normalization_params,json_file, indent=4)
-            print('Datos de normalizacion calculados y guardados en modelos/normalization.json')
-        else:
-            self.normalization_image_params=normalization_image_params
-            self.normalization_params=normalization_params
-            print('Datos de normalizacion cargados')
-            
-    def setTransform(self, transform):
-        self.transform = transform
+	'''
+	
+	def __init__(self,root_folder=None, dataplaces=None ,transform=None,in_memory=False,terminaciones=None,normalization_params=None,
+					normalization_image_params=None,normalization_image_size=(224,224),
+					max_values=None,delimiter='.',
+					params_simulacion_defectos=None,
+					scale=1.0,
+					logaritmo=True,
+					monocanal=False):
+		#super().__init__()
 
-              
-    def __getitem__(self, index: int) :              
-        caso=self.dataset[index]
-        max_values=self.max_values
-        
-        
-        
-        pixels=caso['pixels']
+		self.root_folder=root_folder
+		self.dataplaces=dataplaces
+		self.transform = transform
+		self.terminaciones=terminaciones
+		self.max_values=max_values
+		self.delimiter=delimiter
+		self.scale=scale
+		self.monocanal = monocanal
 
-        if pixels is None:
-            pixels=[]
-            for t in range(len(self.terminaciones)):
-                #print("getting item", caso['filenames'][t],index,self.__len__())
-                assert os.path.exists(caso['filenames'][t]), caso['filenames'][t]
-                pixels_channel=read_image_rayosX(caso['filenames'][t],max_values[t],scale=self.scale)
-                pixels.append(pixels_channel)
-            pixels=torch.cat((pixels),0)
-            
-        pixels, defect_mask = self.simulador.processTensor(pixels)
-        
+		self.logaritmo=logaritmo
+		print(">>>>>>>>>>>> DataplacesDataset terminaciones", terminaciones, "delimiter", delimiter)	
+		self.dataset = get_dataset(dataplaces, images_root_folder=root_folder,in_memory=in_memory, 
+									terminaciones=terminaciones,max_values=max_values,delimiter=self.delimiter)
+		self.normalization_image_size=normalization_image_size
+		assert params_simulacion_defectos is not None
 
-   
-        if self.transform is not None:  
-            pixels , defect_mask = self.transform(pixels,defect_mask) # Transforma pixeles y mascaras inteligentemente
-            
-        if self.logaritmo:
-            pixels=torch.log(pixels+1/max_values[0])/math.log(0.2)            
-      
-        return pixels, caso['filenames'],defect_mask
-              
-    def __len__(self) -> int:
-        return len(self.dataset)
- 
+		self.params_simulacion_defectos=params_simulacion_defectos
+		self.simulador=simulador_defectos.SimulaDefectoRayos(self.params_simulacion_defectos)
+
+		print(">>>>>>>>>> scale in DataSet", self.scale)
+
+		# if normalization_params is None or normalization_image_params is None:
+		#     self.normalization_params,self.normalization_image_params=dataset.compute_normalization(self.dataset,self.terminaciones,self.max_values,normalization_image_size)
+		if normalization_params is None:
+			self.normalization_params=compute_normalization(self.dataset,self.terminaciones,self.max_values)    
+			
+			pathlib.Path('modelos').mkdir(parents=True, exist_ok=True)
+			with open('modelos/normalization.json','w') as json_file:
+				json.dump(self.normalization_params,json_file, indent=4)
+			print('Datos de normalizacion calculados y guardados en modelos/normalization.json')
+		else:
+			self.normalization_image_params=normalization_image_params
+			self.normalization_params=normalization_params
+			print('Datos de normalizacion cargados')
+			
+	def setTransform(self, transform):
+		self.transform = transform
+
+				
+	def __getitem__(self, index: int) :              
+		caso=self.dataset[index]
+		max_values=self.max_values
+		
+		
+		
+		pixels=caso['pixels']
+
+		if pixels is None:
+			pixels=[]
+			for t in range(len(self.terminaciones)):
+				#print("getting item", caso['filenames'][t],index,self.__len__())
+				assert os.path.exists(caso['filenames'][t]), caso['filenames'][t]
+				pixels_channel=read_image_rayosX(caso['filenames'][t],max_values[t],scale=self.scale)
+				pixels.append(pixels_channel)
+			pixels=torch.cat((pixels),0)
+	
+		pixels, defect_mask = self.simulador.processTensor(pixels)
+		
+
+
+		if self.transform is not None:  
+			pixels , defect_mask = self.transform(pixels,defect_mask) # Transforma pixeles y mascaras inteligentemente
+			
+		if self.logaritmo:
+			pixels=torch.log(pixels+1/max_values[0])/math.log(0.2)            
+
+		if self.monocanal:
+			pixels=torch.mean(pixels,dim=0,keepdim=True)	
+			pixels=torch.concat([pixels]*3,dim=0)
+		return pixels, caso['filenames'],defect_mask
+				
+	def __len__(self) -> int:
+		return len(self.dataset)
+

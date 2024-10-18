@@ -14,7 +14,7 @@ training_params:
   out_model_name: segmentadorRayosX.ckpt
 
 
-log_name: uso_logatitmo
+log_name: uso_logatitmo_muchos_defectos
 wandb_project: WANDB_RayosX
 
 model_params:
@@ -25,11 +25,11 @@ model_params:
 
 
 defect_simulation_params:
-  prob_no_change: 0.0
+  prob_no_change: 0.2
   min_number_of_defects: 1
-  max_number_of_defects: 3
+  max_number_of_defects: 13
   alpha_low: 0.02
-  alpha_high: 0.04gi
+  alpha_high: 0.04
   min_defect_size: 40
   max_defect_size: 150
   min_defect_width: 2

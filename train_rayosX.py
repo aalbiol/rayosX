@@ -80,6 +80,13 @@ def main(config):
     print(">>>>> Full Path Images Root Folder: ",images_root_folder, " user: ",user)
     
     defect_simulation_params=config['defect_simulation_params']
+
+    if 'logaritmo' in config['dataset_params']:
+        logaritmo=config['dataset_params']['logaritmo']
+    else:
+        logaritmo=False
+    
+    print(">>>>>>>>>>>>> Logaritmo: ",logaritmo)
     
     print(">>>>>> Defect simulation params: ",defect_simulation_params)
     datamodule=ListFileDataModule(train_dataplaces=train_dataplaces, val_dataplaces=val_dataplaces, 
@@ -92,6 +99,8 @@ def main(config):
                                 terminaciones=[".png"],
                                 max_values=maxvalues,
                                 params_simulacion_defectos=defect_simulation_params,
+                                monocanal=config['dataset_params']['monocanal'],
+                                logaritmo=logaritmo,
                                      )
     
     normalizacion=datamodule.getNormalizationParams()
@@ -110,7 +119,7 @@ def main(config):
                             num_epochs=num_epochs,
 
                             gamma_param=config['training_params']['gamma_param'],
-                            pos_weights=config['training_params']['pos_weights'],)
+                           )
     
 # Continuar entrenamiento a partir de un punto
     if'initial_model' in config and config['initial_model'] is not None:
@@ -134,23 +143,7 @@ def main(config):
     if config['log_name'] is not None:
         trainer_args['logger']=miwandb
         
-    # log_cimg=config['log_cimg']
-    # if user=='csanchis':
-    #     log_cimg=os.path.join("/home/csanchis",log_cimg)
-    # elif user=="aalbiol":
-    #     log_cimg=os.path.join("/home/aalbiol/owc",log_cimg)
-    
-    # imagelogger=ImageLogger(epoch_interval=1,num_samples=1,fname=log_cimg,defect_types=tipos_defecto,
-    #                         image_size=image_size,model=model,normalization=dict_norm,num_channels_in=config['num_channels_in'])
-       
 
-    
-    # callbacks2=[lr_monitor, checkpoint_saver]
-    # callbacks3=[lr_monitor, checkpoint_saver,FeatureExtractorFreezeUnfreeze(unfreeze_at_epoch=config['unfreeze_epoch'],initial_denom_lr=1)]
-    # callbacks4=[lr_monitor, 
-    #             FeatureExtractorFreezeUnfreeze(unfreeze_at_epoch=config['training_params']['unfreeze_epoch'],initial_denom_lr=1), 
-    #             imagelogger]
-    
     callbacks5=[lr_monitor, 
                 FeatureExtractorFreezeUnfreeze(unfreeze_at_epoch=config['training_params']['unfreeze_epoch'],initial_denom_lr=1)]
     trainer = pl.Trainer(callbacks=callbacks5  ,**trainer_args) 

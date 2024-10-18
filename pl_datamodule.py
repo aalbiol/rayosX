@@ -94,7 +94,7 @@ class ListFileDataModule(pl.LightningDataModule):
                  pred_dataplaces=None,                 
                  batch_size: int =25, 
                  num_workers=-1,
-                 #imagesize=(224,224),
+                 logaritmo=False,
                  normalization_params=None,
                  normalization_image_params=None,
                  in_memory=True,
@@ -102,7 +102,8 @@ class ListFileDataModule(pl.LightningDataModule):
                  max_values=None,
                  delimiter='.',
                  params_simulacion_defectos=None,
-                 scale=1.0
+                 scale=1.0,
+                 monocanal=False
                  ):
         '''
 
@@ -125,6 +126,8 @@ class ListFileDataModule(pl.LightningDataModule):
         self.pred_dataplaces=pred_dataplaces
         self.params_simulacion_defectos=params_simulacion_defectos
         self.scale=scale
+        self.monocanal=monocanal
+        self.logaritmo=logaritmo
         
         assert self.params_simulacion_defectos is not None
         print('self.normalization params at input of ListFileDataModule', self.normalization_params)
@@ -143,7 +146,9 @@ class ListFileDataModule(pl.LightningDataModule):
                                                    normalization_image_params=self.normalization_image_params,
                                                    #normalization_image_size=self.target_image_size, 
                                                    delimiter=self.delimiter,
-                                                   params_simulacion_defectos=params_simulacion_defectos,scale=self.scale)
+                                                   params_simulacion_defectos=params_simulacion_defectos,scale=self.scale,
+                                                   monocanal=self.monocanal,
+                                                   logaritmo=self.logaritmo)
         # Si por configuracion es none, lo calcula con el trainset
         if self.normalization_params is None :
             self.normalization_params=self.train_dataset.normalization_params
@@ -159,7 +164,9 @@ class ListFileDataModule(pl.LightningDataModule):
                                                  normalization_params=self.normalization_params, 
                                                  #normalization_image_size=self.target_image_size
                                                  delimiter=self.delimiter,
-                                                 params_simulacion_defectos=params_simulacion_defectos,scale=self.scale)
+                                                 params_simulacion_defectos=params_simulacion_defectos,scale=self.scale,
+                                                 monocanal=self.monocanal,
+                                                 logaritmo=self.logaritmo)
         if pred_dataplaces is not None:
             params_simulacion_defectos_pred=params_simulacion_defectos.copy()
             params_simulacion_defectos_pred['prob_no_change']=1.0
@@ -167,7 +174,9 @@ class ListFileDataModule(pl.LightningDataModule):
                                                  normalization_params=self.normalization_params, 
                                                  #normalization_image_size=self.target_image_size,
                                                  delimiter=self.delimiter,
-                                                 params_simulacion_defectos=params_simulacion_defectos_pred,scale=self.scale)
+                                                 params_simulacion_defectos=params_simulacion_defectos_pred,scale=self.scale,
+                                                 monocanal=self.monocanal,
+                                                 logaritmo=self.logaritmo)
 # Transformaciones para el entrenamiento
         transform_geometry_train= transforms.Compose([
             transforms.RandomHorizontalFlip(0.5),

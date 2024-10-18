@@ -50,7 +50,6 @@ class  SegmentadorMonoclase(pl.LightningModule):
                 p_dropout=0.5,
                 num_epochs=None,
                 gamma_param=0.1,
-                pos_weights=1000,
                 ):
         super().__init__()
 
@@ -82,7 +81,7 @@ class  SegmentadorMonoclase(pl.LightningModule):
 
         self.epoch_counter=1
         
-        self.pos_weights = self.pos_weights # El área de los defectos es muy pequeña comparada con la de los no defectos
+        #self.pos_weights = self.pos_weights # El área de los defectos es muy pequeña comparada con la de los no defectos
         
 
         
@@ -107,8 +106,10 @@ class  SegmentadorMonoclase(pl.LightningModule):
         #bcelogitsloss=nn.BCEWithLogitsLoss(reduction='mean',pos_weight=torch.tensor(self.pos_weights).to(self.device))
         bcelogitsloss=nn.BCEWithLogitsLoss(reduction='mean')
         #print(">>>> CRITERIOON",type(logits_pixeles),type(bin_masks))
-        loss0=bcelogitsloss(logits_pixeles[bin_masks>0.5],bin_masks[bin_masks>0.5])
-        loss1=bcelogitsloss(logits_pixeles[bin_masks<=0.5],bin_masks[bin_masks<=0.5])        
+        # loss0=bcelogitsloss(logits_pixeles[bin_masks>0.5],bin_masks[bin_masks>0.5])
+        # loss1=bcelogitsloss(logits_pixeles[bin_masks<=0.5],bin_masks[bin_masks<=0.5])    
+        loss0=bcelogitsloss(logits_pixeles,bin_masks)
+        loss1=0    
         return loss0,loss1
 
 
@@ -140,6 +141,18 @@ class  SegmentadorMonoclase(pl.LightningModule):
         logits_pixels = self.forward(images)
         
         loss0,loss1 = self.criterion(logits_pixels, bin_masks)
+        
+        # num_positives=bin_masks.sum()
+        # num_negatives=bin_masks.numel()-num_positives
+        
+        # num_positives*=8
+        
+        # num_total=num_positives+num_negatives
+        # weight_positives=num_positives/num_total
+        # weight_negatives=num_negatives/num_total
+        
+        
+        #loss=loss0*weight_negatives+loss1*weight_positives
         loss=(loss0+loss1)/2
         
         log_dict={'train_loss':loss, "train_loss0":loss0, "train_loss1":loss1}
